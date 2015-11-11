@@ -107,8 +107,11 @@ schema. In this case the version should be set to the next CKAN version number.
     <field name="tags" type="string" indexed="true" stored="true" multiValued="true"/>
     <field name="groups" type="string" indexed="true" stored="true" multiValued="true"/>
     <field name="organization" type="string" indexed="true" stored="true" multiValued="false"/>
-    <field name="system" type="string" indexed="true" stored="true" multiValued="false"/>
-    
+    <!-- Eawag custom fields -->
+    <field name="systems" type="string" indexed="true" stored="true" multiValued="true"/>
+    <field name="variables" type="string" indexed="true" stored="true" multiValued="true"/>
+    <field name="timerange" type="daterange" indexed="true" stored="true" />
+    <!-- HvW - 2015-11-10 -->
 
     <field name="capacity" type="string" indexed="true" stored="true" multiValued="false"/>
 
@@ -141,9 +144,6 @@ schema. In this case the version should be set to the next CKAN version number.
 
     <field name="indexed_ts" type="date" indexed="true" stored="true" default="NOW" multiValued="false"/>
     
-    <!-- Time range of a package - HvW-2015-10-30 -->
-    <field name="timerange" type="daterange" indexed="true" stored="true" />
-
     <!-- Copy the title field into titleString, and treat as a string
          (rather than text type).  This allows us to sort on the titleString -->
     <field name="title_string" type="string" indexed="true" stored="true" />
@@ -157,7 +157,7 @@ schema. In this case the version should be set to the next CKAN version number.
 
     <dynamicField name="extras_*" type="text" indexed="true" stored="true" multiValued="false"/>
     <dynamicField name="res_extras_*" type="text" indexed="true" stored="true" multiValued="true"/>
-    <dynamicField name="vocab_*" type="string" indexed="true" stored="true" multiValued="true"/>
+    
     <dynamicField name="*" type="string" indexed="true"  stored="false"/>
 </fields>
 
@@ -171,7 +171,6 @@ schema. In this case the version should be set to the next CKAN version number.
 <copyField source="res_url" dest="urls"/>
 <copyField source="extras_*" dest="text"/>
 <copyField source="res_extras_*" dest="text"/>
-<copyField source="vocab_*" dest="text"/>
 <copyField source="urls" dest="text"/>
 <copyField source="name" dest="text"/>
 <copyField source="title" dest="text"/>
