@@ -108,9 +108,9 @@ schema. In this case the version should be set to the next CKAN version number.
     <field name="groups" type="string" indexed="true" stored="true" multiValued="true"/>
     <field name="organization" type="string" indexed="true" stored="true" multiValued="false"/>
     <!-- Eawag custom fields -->
-    <field name="systems" type="string" indexed="true" stored="true" multiValued="true"/>
-    <field name="variables" type="string" indexed="true" stored="true" multiValued="true"/>
-    <field name="timerange" type="daterange" indexed="true" stored="true" />
+    <field name="extras_systems" type="string" indexed="true" stored="true" multiValued="true"/>
+    <field name="extras_variables" type="string" indexed="true" stored="true" multiValued="true"/>
+    <field name="extras_timerange" type="daterange" indexed="true" stored="true" />
     <!-- HvW - 2015-11-10 -->
 
     <field name="capacity" type="string" indexed="true" stored="true" multiValued="false"/>
@@ -155,7 +155,7 @@ schema. In this case the version should be set to the next CKAN version number.
     
     <dynamicField name="*_date" type="date" indexed="true" stored="true" multiValued="false"/>
 
-    <dynamicField name="extras_*" type="text" indexed="true" stored="true" multiValued="false"/>
+    <!-- <dynamicField name="extras_*" type="text" indexed="true" stored="true" multiValued="false"/> -->
     <dynamicField name="res_extras_*" type="text" indexed="true" stored="true" multiValued="true"/>
     <dynamicField name="vocab_*" type="string" indexed="true" stored="true" multiValued="true"/>
     <dynamicField name="*" type="string" indexed="true"  stored="false"/>
