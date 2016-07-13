@@ -111,7 +111,7 @@ schema. In this case the version should be set to the next CKAN version number.
     <field name="variables" type="string" indexed="true" stored="true" multiValued="true"/>
     <field name="generic-terms" type="string" indexed="true" stored="true" multiValued="true"/>
     <field name="systems" type="string" indexed="true" stored="true" multiValued="true"/>
-    <field name="species" type="string" indexed="true" stored="true" multiValued="true"/>
+    <field name="taxa" type="string" indexed="true" stored="true" multiValued="true"/>
     <field name="substances" type="string" indexed="true" stored="true" multiValued="true"/>
     <field name="timerange" type="daterange" indexed="true" stored="true" multiValued="true"/>
     <!-- HvW - 2015-11-10 -->
