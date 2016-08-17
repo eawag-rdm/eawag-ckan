@@ -2376,6 +2376,7 @@ Not used when using the `-d` option.''')
             'q': '',
             'fq': '',
             'fq_list': [],
+            'include_private': True,
             'rows': n,
             'start': n * (page - 1),
         }
@@ -2399,8 +2400,7 @@ Not used when using the `-d` option.''')
             search_data_dict['q'] = '*:*'
 
         query = p.toolkit.get_action('package_search')(
-            {'ignore_capacity_check': True},
-            search_data_dict)
+            {}, search_data_dict)
 
         return query
 

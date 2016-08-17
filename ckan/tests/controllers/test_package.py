@@ -335,16 +335,156 @@ class TestPackageControllerNew(helpers.FunctionalTestBase):
         # The organization id is in the response in a value attribute
         assert 'value="{0}"'.format(org['id']) in pkg_edit_response
 
+    def test_unauthed_user_creating_dataset(self):
+        app = self._get_test_app()
+
+        # provide REMOTE_ADDR to idenfity as remote user, see
+        # BaseController._identify_user() for details
+        response = app.post(url=url_for(controller='package', action='new'),
+                            extra_environ={'REMOTE_ADDR': '127.0.0.1'},
+                            status=403)
+
+
+class TestPackageEdit(helpers.FunctionalTestBase):
+    def test_organization_admin_can_edit(self):
+        user = factories.User()
+        organization = factories.Organization(
+            users=[{'name': user['id'], 'capacity': 'admin'}]
+        )
+        dataset = factories.Dataset(owner_org=organization['id'])
+        app = helpers._get_test_app()
+        env = {'REMOTE_USER': user['name'].encode('ascii')}
+        response = app.get(
+            url_for(controller='package',
+                    action='edit',
+                    id=dataset['name']),
+            extra_environ=env,
+        )
+        form = response.forms['dataset-edit']
+        form['notes'] = u'edited description'
+        submit_and_follow(app, form, env, 'save')
+
+        result = helpers.call_action('package_show', id=dataset['id'])
+        assert_equal(u'edited description', result['notes'])
+
+    def test_organization_editor_can_edit(self):
+        user = factories.User()
+        organization = factories.Organization(
+            users=[{'name': user['id'], 'capacity': 'editor'}]
+        )
+        dataset = factories.Dataset(owner_org=organization['id'])
+        app = helpers._get_test_app()
+        env = {'REMOTE_USER': user['name'].encode('ascii')}
+        response = app.get(
+            url_for(controller='package',
+                    action='edit',
+                    id=dataset['name']),
+            extra_environ=env,
+        )
+        form = response.forms['dataset-edit']
+        form['notes'] = u'edited description'
+        submit_and_follow(app, form, env, 'save')
+
+        result = helpers.call_action('package_show', id=dataset['id'])
+        assert_equal(u'edited description', result['notes'])
+
+    def test_organization_member_cannot_edit(self):
+        user = factories.User()
+        organization = factories.Organization(
+            users=[{'name': user['id'], 'capacity': 'member'}]
+        )
+        dataset = factories.Dataset(owner_org=organization['id'])
+        app = helpers._get_test_app()
+        env = {'REMOTE_USER': user['name'].encode('ascii')}
+        response = app.get(
+            url_for(controller='package',
+                    action='edit',
+                    id=dataset['name']),
+            extra_environ=env,
+            status=403,
+        )
+
+    def test_user_not_in_organization_cannot_edit(self):
+        user = factories.User()
+        organization = factories.Organization()
+        dataset = factories.Dataset(owner_org=organization['id'])
+        app = helpers._get_test_app()
+        env = {'REMOTE_USER': user['name'].encode('ascii')}
+        response = app.get(
+            url_for(controller='package',
+                    action='edit',
+                    id=dataset['name']),
+            extra_environ=env,
+            status=403,
+        )
+
+        env = {'REMOTE_USER': user['name'].encode('ascii')}
+        response = app.post(
+            url_for(controller='package',
+                    action='edit',
+                    id=dataset['name']),
+            {'notes': 'edited description'},
+            extra_environ=env,
+            status=403,
+        )
+
+    def test_anonymous_user_cannot_edit(self):
+        organization = factories.Organization()
+        dataset = factories.Dataset(owner_org=organization['id'])
+        app = helpers._get_test_app()
+        response = app.get(
+            url_for(controller='package',
+                    action='edit',
+                    id=dataset['name']),
+            status=403,
+        )
+
+        response = app.post(
+            url_for(controller='package',
+                    action='edit',
+                    id=dataset['name']),
+            {'notes': 'edited description'},
+            status=403,
+        )
+
+    def test_validation_errors_for_dataset_name_appear(self):
+        '''fill out a bad dataset set name and make sure errors appear'''
+        user = factories.User()
+        organization = factories.Organization(
+            users=[{'name': user['id'], 'capacity': 'admin'}]
+        )
+        dataset = factories.Dataset(owner_org=organization['id'])
+        app = helpers._get_test_app()
+        env = {'REMOTE_USER': user['name'].encode('ascii')}
+        response = app.get(
+            url_for(controller='package',
+                    action='edit',
+                    id=dataset['name']),
+            extra_environ=env,
+        )
+        form = response.forms['dataset-edit']
+        form['name'] = u'this is not a valid name'
+        response = webtest_submit(form, 'save', status=200, extra_environ=env)
+        assert_in('The form contains invalid entries', response.body)
+
+        assert_in('Name: Must be purely lowercase alphanumeric (ascii) '
+                  'characters and these symbols: -_', response.body)
+
+    def test_edit_a_dataset_that_does_not_exist_404s(self):
+        user = factories.User()
+        app = helpers._get_test_app()
+        env = {'REMOTE_USER': user['name'].encode('ascii')}
+        response = app.get(
+            url_for(controller='package',
+                    action='edit',
+                    id='does-not-exist'),
+            extra_environ=env,
+            expect_errors=True
+        )
+        assert_equal(404, response.status_int)
+
 
 class TestPackageRead(helpers.FunctionalTestBase):
-    @classmethod
-    def setup_class(cls):
-        super(cls, cls).setup_class()
-        helpers.reset_db()
-
-    def setup(self):
-        model.repo.rebuild_db()
-
     def test_read(self):
         dataset = factories.Dataset()
         app = helpers._get_test_app()
@@ -528,13 +668,7 @@ class TestResourceRead(helpers.FunctionalTestBase):
         dataset = factories.Dataset()
         resource = factories.Resource(package_id=dataset['id'])
 
-        url = url_for(controller='package',
-                      action='resource_read',
-                      id=dataset['id'],
-                      resource_id=resource['id'])
-
-        app = self._get_test_app()
-        app.get(url, status=200)
+class TestResourceRead(helpers.FunctionalTestBase):
 
     def test_existing_resource_with_not_associated_dataset(self):
 
@@ -726,11 +860,6 @@ class TestResourceDelete(helpers.FunctionalTestBase):
 
 
 class TestSearch(helpers.FunctionalTestBase):
-    @classmethod
-    def setup_class(cls):
-        super(cls, cls).setup_class()
-        helpers.reset_db()
-
     def test_search_basic(self):
         dataset1 = factories.Dataset()
 
@@ -880,6 +1009,104 @@ class TestSearch(helpers.FunctionalTestBase):
         assert_true('Dataset One' not in ds_titles)
         assert_true('Dataset Two' in ds_titles)
         assert_true('Dataset Three' in ds_titles)
+
+    def test_user_not_in_organization_cannot_search_private_datasets(self):
+        app = helpers._get_test_app()
+        user = factories.User()
+        organization = factories.Organization()
+        dataset = factories.Dataset(
+            owner_org=organization['id'],
+            private=True,
+        )
+        env = {'REMOTE_USER': user['name'].encode('ascii')}
+        search_url = url_for(controller='package', action='search')
+        search_response = app.get(search_url, extra_environ=env)
+
+        search_response_html = BeautifulSoup(search_response.body)
+        ds_titles = search_response_html.select('.dataset-list '
+                                                '.dataset-item '
+                                                '.dataset-heading a')
+        assert_equal([n.string for n in ds_titles], [])
+
+    def test_user_in_organization_can_search_private_datasets(self):
+        app = helpers._get_test_app()
+        user = factories.User()
+        organization = factories.Organization(
+            users=[{'name': user['id'], 'capacity': 'member'}])
+        dataset = factories.Dataset(
+            title='A private dataset',
+            owner_org=organization['id'],
+            private=True,
+        )
+        env = {'REMOTE_USER': user['name'].encode('ascii')}
+        search_url = url_for(controller='package', action='search')
+        search_response = app.get(search_url, extra_environ=env)
+
+        search_response_html = BeautifulSoup(search_response.body)
+        ds_titles = search_response_html.select('.dataset-list '
+                                                '.dataset-item '
+                                                '.dataset-heading a')
+        assert_equal([n.string for n in ds_titles], ['A private dataset'])
+
+    def test_user_in_different_organization_cannot_search_private_datasets(self):
+        app = helpers._get_test_app()
+        user = factories.User()
+        org1 = factories.Organization(
+            users=[{'name': user['id'], 'capacity': 'member'}])
+        org2 = factories.Organization()
+        dataset = factories.Dataset(
+            title='A private dataset',
+            owner_org=org2['id'],
+            private=True,
+        )
+        env = {'REMOTE_USER': user['name'].encode('ascii')}
+        search_url = url_for(controller='package', action='search')
+        search_response = app.get(search_url, extra_environ=env)
+
+        search_response_html = BeautifulSoup(search_response.body)
+        ds_titles = search_response_html.select('.dataset-list '
+                                                '.dataset-item '
+                                                '.dataset-heading a')
+        assert_equal([n.string for n in ds_titles], [])
+
+    @helpers.change_config('ckan.search.default_include_private', 'false')
+    def test_search_default_include_private_false(self):
+        app = helpers._get_test_app()
+        user = factories.User()
+        organization = factories.Organization(
+            users=[{'name': user['id'], 'capacity': 'member'}])
+        dataset = factories.Dataset(
+            owner_org=organization['id'],
+            private=True,
+        )
+        env = {'REMOTE_USER': user['name'].encode('ascii')}
+        search_url = url_for(controller='package', action='search')
+        search_response = app.get(search_url, extra_environ=env)
+
+        search_response_html = BeautifulSoup(search_response.body)
+        ds_titles = search_response_html.select('.dataset-list '
+                                                '.dataset-item '
+                                                '.dataset-heading a')
+        assert_equal([n.string for n in ds_titles], [])
+
+    def test_sysadmin_can_search_private_datasets(self):
+        app = helpers._get_test_app()
+        user = factories.Sysadmin()
+        organization = factories.Organization()
+        dataset = factories.Dataset(
+            title='A private dataset',
+            owner_org=organization['id'],
+            private=True,
+        )
+        env = {'REMOTE_USER': user['name'].encode('ascii')}
+        search_url = url_for(controller='package', action='search')
+        search_response = app.get(search_url, extra_environ=env)
+
+        search_response_html = BeautifulSoup(search_response.body)
+        ds_titles = search_response_html.select('.dataset-list '
+                                                '.dataset-item '
+                                                '.dataset-heading a')
+        assert_equal([n.string for n in ds_titles], ['A private dataset'])
 
 
 class TestPackageFollow(helpers.FunctionalTestBase):
