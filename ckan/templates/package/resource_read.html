@@ -37,7 +37,7 @@
                     <i class="icon-eye-open"></i> {{ _('View') }}
                   {% elif  res.resource_type == 'api' %}
                     <i class="icon-key"></i> {{ _('API Endpoint') }}
-                  {% elif not res.has_views or not res.can_be_previewed %}
+                  {% elif (not res.has_views or not res.can_be_previewed) and not res.url_type == 'upload' %}
                     <i class="icon-external-link"></i> {{ _('Go to resource') }}
                   {% else %}
                     <i class="icon-download"></i> {{ _('Download') }}
