@@ -5,14 +5,14 @@
 <li class="resource-item" data-id="{{ res.id }}">
   {% block resource_item_title %}
   <a class="heading" href="{{ url }}" title="{{ res.name or res.description }}">
-    {{ h.resource_display_name(res) | truncate(50) }}<span class="format-label" property="dc:format" data-format="{{ res.format.lower() or 'data' }}">{{ res.format }}</span>
+    {{ h.resource_display_name(res) | truncate(50) }}<span class="format-label" property="dc:format" data-format="{{ res.format.lower() or 'data' }}">{{ h.get_translated(res, 'format') }}</span>
     {{ h.popular('views', res.tracking_summary.total, min=10) }}
   </a>
   {% endblock %}
   {% block resource_item_description %}
     <p class="description">
       {% if res.description %}
-        {{ h.markdown_extract(res.description, extract_length=80) }}
+        {{ h.markdown_extract(h.get_translated(res, 'description'), extract_length=80) }}
       {% endif %}
     </p>
   {% endblock %}
@@ -40,7 +40,7 @@
       {% if res.url and h.is_url(res.url) %}
       <li>
         <a href="{{ res.url }}" class="resource-url-analytics" target="_blank">
-          {% if res.has_views %}
+          {% if res.has_views or res.url_type == 'upload' %}
             <i class="icon-download"></i>
             {{ _('Download') }}
           {% else %}
@@ -64,3 +64,4 @@
   {% endif %}
   {% endblock %}
 </li>
+
