@@ -41,13 +41,6 @@ schema. In this case the version should be set to the next CKAN version number.
     <fieldType name="date" class="solr.TrieDateField" omitNorms="true" precisionStep="0" positionIncrementGap="0"/>
     <fieldType name="tdate" class="solr.TrieDateField" omitNorms="true" precisionStep="6" positionIncrementGap="0"/>
 
-    <fieldType name="tdates" class="solr.TrieDateField" precisionStep="7" positionIncrementGap="0" multiValued="true"/>
-    <fieldType name="booleans" class="solr.BoolField" sortMissingLast="true" multiValued="true"/>
-    <fieldType name="tints" class="solr.TrieIntField" precisionStep="8" positionIncrementGap="0" multiValued="true"/>
-    <fieldType name="tfloats" class="solr.TrieFloatField" precisionStep="8" positionIncrementGap="0" multiValued="true"/>
-    <fieldType name="tlongs" class="solr.TrieLongField" precisionStep="8" positionIncrementGap="0" multiValued="true"/>
-    <fieldType name="tdoubles" class="solr.TrieDoubleField" precisionStep="8" positionIncrementGap="0" multiValued="true"/>
-
     <fieldType name="text" class="solr.TextField" positionIncrementGap="100">
         <analyzer type="index">
             <tokenizer class="solr.WhitespaceTokenizerFactory"/>
@@ -81,6 +74,10 @@ schema. In this case the version should be set to the next CKAN version number.
             <filter class="solr.LowerCaseFilterFactory"/>
         </analyzer>
     </fieldType>
+    
+    <!-- Field type for date ranges - HvW-2015/10/30 -->
+    <fieldType name="daterange" class="solr.DateRangeField" />
+    
 </types>
 
 
@@ -110,6 +107,15 @@ schema. In this case the version should be set to the next CKAN version number.
     <field name="tags" type="string" indexed="true" stored="true" multiValued="true"/>
     <field name="groups" type="string" indexed="true" stored="true" multiValued="true"/>
     <field name="organization" type="string" indexed="true" stored="true" multiValued="false"/>
+    <!-- Eawag custom fields -->
+    <field name="variables" type="string" indexed="true" stored="true" multiValued="true"/>
+    <field name="generic-terms" type="string" indexed="true" stored="true" multiValued="true"/>
+    <field name="systems" type="string" indexed="true" stored="true" multiValued="true"/>
+    <field name="taxa" type="string" indexed="true" stored="true" multiValued="true"/>
+    <field name="substances" type="string" indexed="true" stored="true" multiValued="true"/>
+    <field name="timerange" type="daterange" indexed="true" stored="true" multiValued="true"/>
+    <field name="geographic_name" type="string" indexed="true" stored="true" multiValued="true"/>
+    <!-- HvW - 2015-11-10 -->
 
     <field name="capacity" type="string" indexed="true" stored="true" multiValued="false"/>
 
@@ -141,16 +147,16 @@ schema. In this case the version should be set to the next CKAN version number.
     <field name="metadata_modified" type="date" indexed="true" stored="true" multiValued="false"/>
 
     <field name="indexed_ts" type="date" indexed="true" stored="true" default="NOW" multiValued="false"/>
-
+    
     <!-- Copy the title field into titleString, and treat as a string
          (rather than text type).  This allows us to sort on the titleString -->
-    <field name="title_string" type="string" indexed="true" stored="false" />
+    <field name="title_string" type="string" indexed="true" stored="true" />
 
     <field name="data_dict" type="string" indexed="false" stored="true" />
     <field name="validated_data_dict" type="string" indexed="false" stored="true" />
 
     <field name="_version_" type="string" indexed="true" stored="true"/>
-
+    
     <dynamicField name="*_date" type="date" indexed="true" stored="true" multiValued="false"/>
 
     <dynamicField name="extras_*" type="text" indexed="true" stored="true" multiValued="false"/>
@@ -169,7 +175,6 @@ schema. In this case the version should be set to the next CKAN version number.
 <copyField source="res_url" dest="urls"/>
 <copyField source="extras_*" dest="text"/>
 <copyField source="res_extras_*" dest="text"/>
-<copyField source="vocab_*" dest="text"/>
 <copyField source="urls" dest="text"/>
 <copyField source="name" dest="text"/>
 <copyField source="title" dest="text"/>
