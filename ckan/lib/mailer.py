@@ -5,7 +5,6 @@ from time import time
 from email.mime.text import MIMEText
 from email.header import Header
 from email import Utils
-from urlparse import urljoin
 
 from pylons import config
 import paste.deploy.converters
@@ -32,7 +31,11 @@ def _mail_recipient(recipient_name, recipient_email,
     mail_from = config.get('smtp.mail_from')
     body = add_msg_niceties(recipient_name, body, sender_name, sender_url)
     msg = MIMEText(body.encode('utf-8'), 'plain', 'utf-8')
-    for k, v in headers.items(): msg[k] = v
+    for k, v in headers.items():
+        if k in msg.keys():
+            msg.replace_header(k, v)
+        else:
+            msg.add_header(k, v)
     subject = Header(subject.encode('utf-8'), 'utf-8')
     msg['Subject'] = subject
     msg['From'] = _("%s <%s>") % (sender_name, mail_from)
@@ -133,11 +136,12 @@ def get_invite_body(user):
     return invite_message.format(**d)
 
 def get_reset_link(user):
-    return urljoin(g.site_url,
-                   h.url_for(controller='user',
-                           action='perform_reset',
-                           id=user.id,
-                           key=user.reset_key))
+    return h.url_for(controller='user',
+                     action='perform_reset',
+                     id=user.id,
+                     key=user.reset_key,
+                     qualified=True)
+
 
 def send_reset_link(user):
     create_reset_key(user)
@@ -164,6 +168,3 @@ def verify_reset_link(user, key):
     if not user.reset_key or len(user.reset_key) < 5:
         return False
     return key.strip() == user.reset_key
-
-
-

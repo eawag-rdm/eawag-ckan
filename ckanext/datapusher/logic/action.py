@@ -8,6 +8,7 @@ from dateutil.parser import parse as parse_date
 import pylons
 import requests
 
+import ckan.lib.helpers as h
 import ckan.lib.navl.dictization_functions
 import ckan.logic as logic
 import ckan.plugins as p
@@ -57,8 +58,8 @@ def datapusher_submit(context, data_dict):
 
     datapusher_url = pylons.config.get('ckan.datapusher.url')
 
-    site_url = pylons.config['ckan.site_url']
-    callback_url = site_url.rstrip('/') + '/api/3/action/datapusher_hook'
+    site_url = h.url_for('/', qualified=True)
+    callback_url = h.url_for('/api/3/action/datapusher_hook', qualified=True)
 
     user = p.toolkit.get_action('user_show')(context, {'id': context['user']})
 
@@ -74,7 +75,7 @@ def datapusher_submit(context, data_dict):
         'entity_id': res_id,
         'entity_type': 'resource',
         'task_type': 'datapusher',
-        'last_updated': str(datetime.datetime.now()),
+        'last_updated': str(datetime.datetime.utcnow()),
         'state': 'submitting',
         'key': 'datapusher',
         'value': '{}',
@@ -119,7 +120,7 @@ def datapusher_submit(context, data_dict):
                  'details': str(e)}
         task['error'] = json.dumps(error)
         task['state'] = 'error'
-        task['last_updated'] = str(datetime.datetime.now()),
+        task['last_updated'] = str(datetime.datetime.utcnow()),
         p.toolkit.get_action('task_status_update')(context, task)
         raise p.toolkit.ValidationError(error)
 
@@ -134,7 +135,7 @@ def datapusher_submit(context, data_dict):
                  'status_code': r.status_code}
         task['error'] = json.dumps(error)
         task['state'] = 'error'
-        task['last_updated'] = str(datetime.datetime.now()),
+        task['last_updated'] = str(datetime.datetime.utcnow()),
         p.toolkit.get_action('task_status_update')(context, task)
         raise p.toolkit.ValidationError(error)
 
@@ -143,7 +144,7 @@ def datapusher_submit(context, data_dict):
 
     task['value'] = value
     task['state'] = 'pending'
-    task['last_updated'] = str(datetime.datetime.now()),
+    task['last_updated'] = str(datetime.datetime.utcnow()),
     p.toolkit.get_action('task_status_update')(context, task)
 
     return True
@@ -175,7 +176,7 @@ def datapusher_hook(context, data_dict):
     })
 
     task['state'] = status
-    task['last_updated'] = str(datetime.datetime.now())
+    task['last_updated'] = str(datetime.datetime.utcnow())
 
     resubmit = False
 

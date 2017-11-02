@@ -417,7 +417,8 @@ class PackageController(base.BaseController):
                 h.redirect_to(controller='revision', action='diff', **params)
 
         context = {'model': model, 'session': model.Session,
-                   'user': c.user or c.author, 'auth_user_obj': c.userobj}
+                   'user': c.user, 'auth_user_obj': c.userobj,
+                   'for_view': True}
         data_dict = {'id': id}
         try:
             c.pkg_dict = get_action('package_show')(context, data_dict)
@@ -550,6 +551,15 @@ class PackageController(base.BaseController):
 
     def resource_edit(self, id, resource_id, data=None, errors=None,
                       error_summary=None):
+        context = {'model': model, 'session': model.Session,
+                   'api_version': 3, 'for_edit': True,
+                   'user': c.user, 'auth_user_obj': c.userobj}
+        data_dict = {'id': id}
+
+        try:
+            check_access('package_update', context, data_dict)
+        except NotAuthorized:
+            abort(403, _('User %r not authorized to edit %s') % (c.user, id))
 
         if request.method == 'POST' and not data:
             data = data or \
@@ -557,10 +567,6 @@ class PackageController(base.BaseController):
                                                            request.POST))))
             # we don't want to include save as it is part of the form
             del data['save']
-
-            context = {'model': model, 'session': model.Session,
-                       'api_version': 3, 'for_edit': True,
-                       'user': c.user or c.author, 'auth_user_obj': c.userobj}
 
             data['package_id'] = id
             try:
@@ -579,20 +585,12 @@ class PackageController(base.BaseController):
             redirect(h.url_for(controller='package', action='resource_read',
                                id=id, resource_id=resource_id))
 
-        context = {'model': model, 'session': model.Session,
-                   'api_version': 3, 'for_edit': True,
-                   'user': c.user or c.author, 'auth_user_obj': c.userobj}
         pkg_dict = get_action('package_show')(context, {'id': id})
         if pkg_dict['state'].startswith('draft'):
             # dataset has not yet been fully created
             resource_dict = get_action('resource_show')(context,
                                                         {'id': resource_id})
-            fields = ['url', 'resource_type', 'format', 'name', 'description',
-                      'id']
-            data = {}
-            for field in fields:
-                data[field] = resource_dict[field]
-            return self.new_resource(id, data=data)
+            return self.new_resource(id, data=resource_dict)
         # resource is fully created
         try:
             resource_dict = get_action('resource_show')(context,
@@ -753,7 +751,9 @@ class PackageController(base.BaseController):
         if context['save'] and not data:
             return self._save_edit(id, context, package_type=package_type)
         try:
-            c.pkg_dict = get_action('package_show')(context, {'id': id})
+            c.pkg_dict = get_action('package_show')(dict(context,
+                                                         for_view=True),
+                                                    {'id': id})
             context['for_edit'] = True
             old_data = get_action('package_show')(context, {'id': id})
             # old data is from the database and data is passed from the
@@ -1108,7 +1108,7 @@ class PackageController(base.BaseController):
         except KeyError:
             c.package['isopen'] = False
 
-        # TODO: find a nicer way of doing this
+        # Deprecated: c.datastore_api - use h.action_url instead
         c.datastore_api = '%s/api/action' % \
             config.get('ckan.site_url', '').rstrip('/')
 

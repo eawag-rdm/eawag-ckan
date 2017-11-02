@@ -663,6 +663,17 @@ class TestResourceRead(helpers.FunctionalTestBase):
         app = self._get_test_app()
         app.get(url, status=404)
 
+    def test_resource_view_description_is_rendered_as_markdown(self):
+        resource_view = factories.ResourceView(description="Some **Markdown**")
+        url = url_for(controller='package',
+                      action='resource_read',
+                      id=resource_view['package_id'],
+                      resource_id=resource_view['resource_id'],
+                      view_id=resource_view['id'])
+        app = self._get_test_app()
+        response = app.get(url)
+        response.mustcontain('Some <strong>Markdown</strong>')
+
     def test_existing_resource_with_associated_dataset(self):
 
         dataset = factories.Dataset()
@@ -855,7 +866,7 @@ class TestResourceDelete(helpers.FunctionalTestBase):
         # cancelling sends us back to the resource edit page
         form = response.forms['confirm-resource-delete-form']
         response = form.submit('cancel')
-        response = response.follow()
+        response = response.follow(extra_environ=env)
         assert_equal(200, response.status_int)
 
 
@@ -868,6 +879,16 @@ class TestSearch(helpers.FunctionalTestBase):
         page = app.get(offset)
 
         assert dataset1['name'] in page.body.decode('utf8')
+
+    def test_search_language_toggle(self):
+        dataset1 = factories.Dataset()
+
+        offset = url_for(controller='package', action='search', q=dataset1['name'])
+        app = self._get_test_app()
+        page = app.get(offset)
+
+        assert dataset1['name'] in page.body.decode('utf8')
+        assert ('q=' + dataset1['name']) in page.body.decode('utf8')
 
     def test_search_sort_by_blank(self):
         factories.Dataset()
