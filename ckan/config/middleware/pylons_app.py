@@ -1,6 +1,7 @@
 # encoding: utf-8
 
 import os
+import re
 
 from pylons.wsgiapp import PylonsApp
 
@@ -55,6 +56,8 @@ def make_pylons_stack(conf, full_stack=True, static_files=True,
     for plugin in PluginImplementations(IMiddleware):
         app = plugin.make_middleware(app, config)
 
+    app = common_middleware.RootPathMiddleware(app, config)
+
     # Routing/Session/Cache Middleware
     app = RoutesMiddleware(app, config['routes.map'])
     # we want to be able to retrieve the routes middleware to be able to update
@@ -87,6 +90,10 @@ def make_pylons_stack(conf, full_stack=True, static_files=True,
             'bottom': True,
             'bundle': True,
         }
+    root_path = config.get('ckan.root_path', None)
+    if root_path:
+        root_path = re.sub('/{{LANG}}', '', root_path)
+        fanstatic_config['base_url'] = root_path
     app = Fanstatic(app, **fanstatic_config)
 
     for plugin in PluginImplementations(IMiddleware):
@@ -172,8 +179,6 @@ def make_pylons_stack(conf, full_stack=True, static_files=True,
     # Tracking
     if asbool(config.get('ckan.tracking_enabled', 'false')):
         app = common_middleware.TrackingMiddleware(app, config)
-
-    app = common_middleware.RootPathMiddleware(app, config)
 
     # Add a reference to the actual Pylons app so it's easier to access
     app._wsgi_app = pylons_app

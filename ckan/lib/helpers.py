@@ -17,17 +17,19 @@ import pprint
 import copy
 import urlparse
 from urllib import urlencode
+import uuid
 
 from paste.deploy import converters
-from webhelpers.html import HTML, literal, tags
+from webhelpers.html import HTML, literal, tags, tools
 from webhelpers import paginate
 import webhelpers.text as whtext
 import webhelpers.date as date
 from markdown import markdown
 from bleach import clean as clean_html, ALLOWED_TAGS, ALLOWED_ATTRIBUTES
 from pylons import url as _pylons_default_url
-from ckan.common import config
-from routes import redirect_to as _redirect_to
+from ckan.common import config, is_flask_request
+from flask import redirect as _flask_redirect
+from routes import redirect_to as _routes_redirect_to
 from routes import url_for as _routes_default_url_for
 import i18n
 
@@ -43,10 +45,13 @@ import ckan.authz as authz
 import ckan.plugins as p
 import ckan
 
-from ckan.common import _, ungettext, g, c, request, session, json
+from ckan.common import _, ungettext, c, request, session, json
 from markupsafe import Markup, escape
 
+
 log = logging.getLogger(__name__)
+
+DEFAULT_FACET_NAMES = u'organization groups tags res_format license_id'
 
 MARKDOWN_TAGS = set([
     'del', 'dd', 'dl', 'dt', 'h1', 'h2',
@@ -147,10 +152,39 @@ def redirect_to(*args, **kw):
 
         toolkit.redirect_to('dataset_read', id='changed')
 
+    If given a single string as argument, this redirects without url parsing
+
+        toolkit.redirect_to('http://example.com')
+        toolkit.redirect_to('/dataset')
+        toolkit.redirect_to('/some/other/path')
+
     '''
     if are_there_flash_messages():
         kw['__no_cache__'] = True
-    return _redirect_to(url_for(*args, **kw))
+
+    # Routes router doesn't like unicode args
+    uargs = map(lambda arg: str(arg) if isinstance(arg, unicode) else arg,
+                args)
+
+    _url = ''
+    skip_url_parsing = False
+    parse_url = kw.pop('parse_url', False)
+    if uargs and len(uargs) is 1 and isinstance(uargs[0], basestring) \
+            and (uargs[0].startswith('/') or is_url(uargs[0])) \
+            and parse_url is False:
+        skip_url_parsing = True
+        _url = uargs[0]
+
+    if skip_url_parsing is False:
+        _url = url_for(*uargs, **kw)
+
+    if _url.startswith('/'):
+        _url = str(config['ckan.site_url'].rstrip('/') + _url)
+
+    if is_flask_request():
+        return _flask_redirect(_url)
+    else:
+        return _routes_redirect_to(_url)
 
 
 @maintain.deprecated('h.url is deprecated please use h.url_for')
@@ -476,6 +510,7 @@ class _Flash(object):
     def are_there_messages(self):
         return bool(session.get(self.session_key))
 
+
 flash = _Flash()
 # this is here for backwards compatability
 _flash = flash
@@ -533,7 +568,7 @@ def _link_to(text, *args, **kwargs):
         if kwargs.pop('inner_span', None):
             text = literal('<span>') + text + literal('</span>')
         if icon:
-            text = literal('<i class="icon-%s"></i> ' % icon) + text
+            text = literal('<i class="fa fa-%s"></i> ' % icon) + text
         return text
 
     icon = kwargs.pop('icon', None)
@@ -861,7 +896,7 @@ def sorted_extras(package_extras, auto_clean=False, subs=None, exclude=None):
 
     # If exclude is not supplied use values defined in the config
     if not exclude:
-        exclude = g.package_hide_extras
+        exclude = config.get('package_hide_extras', [])
     output = []
     for extra in sorted(package_extras, key=lambda x: x['key']):
         if extra.get('state') == 'deleted':
@@ -1034,6 +1069,7 @@ def linked_gravatar(email_hash, size=100, default=None):
         'title="%s" alt="">' % _('Update your avatar at gravatar.com') +
         '%s</a>' % gravatar(email_hash, size, default)
     )
+
 
 _VALID_GRAVATAR_DEFAULTS = ['404', 'mm', 'identicon', 'monsterid',
                             'wavatar', 'retro']
@@ -1465,6 +1501,7 @@ def convert_to_dict(object_type, objs):
         items.append(item)
     return items
 
+
 # these are the types of objects that can be followed
 _follow_objects = ['dataset', 'user', 'group']
 
@@ -1674,12 +1711,15 @@ def groups_available(am_member=False):
 
 
 @core_helper
-def organizations_available(permission='edit_group'):
+def organizations_available(
+        permission='manage_group', include_dataset_count=False):
     '''Return a list of organizations that the current user has the specified
     permission for.
     '''
     context = {'user': c.user}
-    data_dict = {'permission': permission}
+    data_dict = {
+        'permission': permission,
+        'include_dataset_count': include_dataset_count}
     return logic.get_action('organization_list_for_user')(context, data_dict)
 
 
@@ -1792,6 +1832,7 @@ def get_request_param(parameter_name, default=None):
     from the request. This is useful for things like sort order in
     searches. '''
     return request.params.get(parameter_name, default)
+
 
 # find all inner text of html eg `<b>moo</b>` gets `moo` but not of <a> tags
 # as this would lead to linkifying links if they are urls.
@@ -2102,6 +2143,7 @@ def SI_number_span(number):
                          + '">')
     return output + formatters.localised_SI_number(number) + literal('</span>')
 
+
 # add some formatter functions
 localised_number = formatters.localised_number
 localised_SI_number = formatters.localised_SI_number
@@ -2202,6 +2244,7 @@ def get_site_statistics():
         logic.get_action('organization_list')({}, {}))
     return stats
 
+
 _RESOURCE_FORMATS = None
 
 
@@ -2299,9 +2342,33 @@ def license_options(existing_license_id=None):
 def get_translated(data_dict, field):
     language = i18n.get_lang()
     try:
-        return data_dict[field + '_translated'][language]
+        return data_dict[field + u'_translated'][language]
     except KeyError:
-        return data_dict.get(field, '')
+        val = data_dict.get(field, '')
+        return _(val) if val and isinstance(val, basestring) else val
+
+
+@core_helper
+def facets():
+    u'''Returns a list of the current facet names'''
+    return config.get(u'search.facets', DEFAULT_FACET_NAMES).split()
+
+
+@core_helper
+def mail_to(email_address, name):
+    email = escape(email_address)
+    author = escape(name)
+    html = Markup(u'<a href=mailto:{0}>{1}</a>'.format(email, author))
+    return html
+
+
+@core_helper
+def radio(selected, id, checked):
+    if checked:
+        return literal((u'<input checked="checked" id="%s_%s" name="%s" \
+            value="%s" type="radio">') % (selected, id, selected, id))
+    return literal(('<input id="%s_%s" name="%s" \
+        value="%s" type="radio">') % (selected, id, selected, id))
 
 
 @core_helper
@@ -2353,3 +2420,11 @@ def load_plugin_helpers():
 
     for plugin in reversed(list(p.PluginImplementations(p.ITemplateHelpers))):
         helper_functions.update(plugin.get_helpers())
+
+
+@core_helper
+def sanitize_id(id_):
+    '''Given an id (uuid4), if it has any invalid characters it raises
+    ValueError.
+    '''
+    return str(uuid.UUID(id_))

@@ -245,6 +245,10 @@ Data can be written incrementally to the DataStore through the API. New data can
 inserted, existing data can be updated or deleted. You can also add a new column to
 an existing table even if the DataStore resource already contains some data.
 
+Triggers may be added to enforce validation, clean data as it is loaded or
+even record record histories. Triggers are PL/pgSQL functions that must be
+created by a sysadmin.
+
 You will notice that we tried to keep the layer between the underlying PostgreSQL
 database and the API as thin as possible to allow you to use the features you would
 expect from a powerful database management system.
@@ -275,10 +279,17 @@ API reference
 
 .. _dump:
 
-Download resource as CSV
-------------------------
+Download resource
+-----------------
 
 A DataStore resource can be downloaded in the `CSV`_ file format from ``{CKAN-URL}/datastore/dump/{RESOURCE-ID}``.
+
+For an Excel-compatible CSV file use ``{CKAN-URL}/datastore/dump/{RESOURCE-ID}?bom=true``.
+
+Other formats supported include tab-separated values (``?format=tsv``),
+JSON (``?format=json``) and XML (``?format=xml``). E.g. to download an Excel-compatible
+tab-separated file use
+``{CKAN-URL}/datastore/dump/{RESOURCE-ID}?format=tsv&bom=true``.
 
 .. _CSV: https://en.wikipedia.org/wiki/Comma-separated_values
 
@@ -423,3 +434,13 @@ name
     Contains the name of the alias if alias_of is not null. Otherwise, this is the resource id of the CKAN resource for the DataStore resource.
 oid
     The PostgreSQL object ID of the table that belongs to name.
+
+Extending DataStore
+===================
+
+Starting from CKAN version 2.7, backend used in DataStore can be replaced with custom one. For this purpose, custom extension must implement `ckanext.datastore.interfaces.IDatastoreBackend`, which provides one method - `register_backends`. It should return dictonary with names of custom backends as keys and classes, that represent those backends as values. Each class supposed to be inherited from `ckanext.datastore.backend.DatastoreBackend`.
+
+.. note:: Example of custom implementation can be found at `ckanext.example_idatastorebackend`
+
+.. automodule:: ckanext.datastore.backend
+   :members:
