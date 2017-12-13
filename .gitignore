@@ -38,5 +38,8 @@ ckan.log
 ckan_deb/DEBIAN/control
 ckan_deb/DEBIAN/prerm
 
+# js translations
+ckan/public/base/i18n/*.js
+
 # node.js
 node_modules/
